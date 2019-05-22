@@ -1,8 +1,12 @@
 // migrating the appropriate contracts
-var SquareVerifier = artifacts.require("./SquareVerifier.sol");
-var SolnSquareVerifier = artifacts.require("./SolnSquareVerifier.sol");
+var AdrienHouseToken = artifacts.require("AdrienHouseToken");
+var Verifier = artifacts.require("Verifier");
+var SolnSquareVerifier = artifacts.require("SolnSquareVerifier");
 
 module.exports = function(deployer) {
-  deployer.deploy(SquareVerifier);
-  deployer.deploy(SolnSquareVerifier);
+  deployer.deploy(AdrienHouseToken);
+  deployer.deploy(Verifier).then(function () {
+    console.log(Verifier.address);
+    return deployer.deploy(SolnSquareVerifier, Verifier.address);
+  })
 };
