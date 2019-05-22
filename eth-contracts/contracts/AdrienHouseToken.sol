@@ -62,41 +62,41 @@ contract Pausable is Ownable {
 }
 
 contract ERC165 {
-    bytes4 private constant _INTERFACE_ID_ERC165 = 0x01ffc9a7;
     /*
-     * 0x01ffc9a7 ===
-     *     bytes4(keccak256('supportsInterface(bytes4)'))
+     * bytes4(keccak256('supportsInterface(bytes4)')) == 0x01ffc9a7
      */
+    bytes4 private constant _INTERFACE_ID_ERC165 = 0x01ffc9a7;
 
     /**
-     * @dev a mapping of interface id to whether or not it's supported
+     * @dev Mapping of interface ids to whether or not it's supported.
      */
     mapping(bytes4 => bool) private _supportedInterfaces;
 
     /**
      * @dev A contract implementing SupportsInterfaceWithLookup
-     * implement ERC165 itself
+     * implements ERC165 itself.
      */
     constructor () internal {
         _registerInterface(_INTERFACE_ID_ERC165);
     }
 
     /**
-     * @dev implement supportsInterface(bytes4) using a lookup table
+     * @dev Implement supportsInterface(bytes4) using a lookup table.
      */
     function supportsInterface(bytes4 interfaceId) external view returns (bool) {
         return _supportedInterfaces[interfaceId];
     }
 
     /**
-     * @dev internal method for registering an interface
+     * @dev Internal method for registering an interface.
      */
     function _registerInterface(bytes4 interfaceId) internal {
-        require(interfaceId != 0xffffffff);
+        require(interfaceId != 0xffffffff, "ERC165: invalid interface id");
         _supportedInterfaces[interfaceId] = true;
     }
 }
 
+// https://github.com/OpenZeppelin/openzeppelin-solidity/blob/master/contracts/token/ERC721/ERC721.sol
 contract ERC721 is Pausable, ERC165 {
 
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
@@ -135,51 +135,76 @@ contract ERC721 is Pausable, ERC165 {
         _registerInterface(_INTERFACE_ID_ERC721);
     }
 
+    /**
+     * @dev Gets the balance of the specified address.
+     * @param owner address to query the balance of
+     * @return uint256 representing the amount owned by the passed address
+     */
     function balanceOf(address owner) public view returns (uint256) {
+        require(owner != address(0), "ERC721: balance query for the zero address");
+
         return _ownedTokensCount[owner].current();
     }
 
+    /**
+     * @dev Gets the owner of the specified token ID.
+     * @param tokenId uint256 ID of the token to query the owner of
+     * @return address currently marked as the owner of the given token ID
+     */
     function ownerOf(uint256 tokenId) public view returns (address) {
-        return _tokenOwner[tokenId];
+        address owner = _tokenOwner[tokenId];
+        require(owner != address(0), "ERC721: owner query for nonexistent token");
+
+        return owner;
     }
 
-    /**
-    * @dev Approves another address to transfer the given token ID
-    */    
+   /**
+     * @dev Approves another address to transfer the given token ID
+     * The zero address indicates there is no approved address.
+     * There can only be one approved address per token at a given time.
+     * Can only be called by the token owner or an approved operator.
+     * @param to address to be approved for the given token ID
+     * @param tokenId uint256 ID of the token to be approved
+     */
     function approve(address to, uint256 tokenId) public {
-        require(_tokenOwner[tokenId] != to, "Can't approve an address that already own the token");
-        require(_tokenOwner[tokenId] == msg.sender, "Must be the owner of the token to set an approval");
+        address owner = ownerOf(tokenId);
+        require(to != owner, "ERC721: approval to current owner");
+
+        require(msg.sender == owner || isApprovedForAll(owner, msg.sender),
+            "ERC721: approve caller is not owner nor approved for all"
+        );
 
         _tokenApprovals[tokenId] = to;
-
-        emit Approval(msg.sender, to, tokenId);
+        emit Approval(owner, to, tokenId);
     }
 
     /**
-    * @dev Get the approved addres for a given tokenId
-    */
+     * @dev Gets the approved address for a token ID, or zero if no address set
+     * Reverts if the token ID does not exist.
+     * @param tokenId uint256 ID of the token to query the approval of
+     * @return address currently approved for the given token ID
+     */
     function getApproved(uint256 tokenId) public view returns (address) {
-        require(_exists(tokenId), "Token does not exist");
-        address approvedAccount = _tokenApprovals[tokenId];
-        require(approvedAccount != address(0), "No approval for this token");
-        
-        return approvedAccount;
+        require(_exists(tokenId), "ERC721: approved query for nonexistent token");
+
+        return _tokenApprovals[tokenId];
     }
 
     /**
      * @dev Sets or unsets the approval of a given operator
-     * An operator is allowed to transfer all tokens of the sender on their behalf
+     * An operator is allowed to transfer all tokens of the sender on their behalf.
      * @param to operator address to set the approval
      * @param approved representing the status of the approval to be set
      */
     function setApprovalForAll(address to, bool approved) public {
-        require(to != msg.sender);
+        require(to != msg.sender, "ERC721: approve to caller");
+
         _operatorApprovals[msg.sender][to] = approved;
         emit ApprovalForAll(msg.sender, to, approved);
     }
 
     /**
-     * @dev Tells whether an operator is approved by a given owner
+     * @dev Tells whether an operator is approved by a given owner.
      * @param owner owner address which you want to query the approval of
      * @param operator operator address which you want to query the approval of
      * @return bool whether the given operator is approved by the given owner
@@ -188,19 +213,51 @@ contract ERC721 is Pausable, ERC165 {
         return _operatorApprovals[owner][operator];
     }
 
+     /**
+     * @dev Transfers the ownership of a given token ID to another address.
+     * Usage of this method is discouraged, use `safeTransferFrom` whenever possible.
+     * Requires the msg.sender to be the owner, approved, or operator.
+     * @param from current owner of the token
+     * @param to address to receive the ownership of the given token ID
+     * @param tokenId uint256 ID of the token to be transferred
+     */
     function transferFrom(address from, address to, uint256 tokenId) public {
-        require(_isApprovedOrOwner(msg.sender, tokenId));
+        //solhint-disable-next-line max-line-length
+        require(_isApprovedOrOwner(msg.sender, tokenId), "ERC721: transfer caller is not owner nor approved");
 
         _transferFrom(from, to, tokenId);
     }
 
+    /**
+     * @dev Safely transfers the ownership of a given token ID to another address
+     * If the target address is a contract, it must implement `onERC721Received`,
+     * which is called upon a safe transfer, and return the magic value
+     * `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`; otherwise,
+     * the transfer is reverted.
+     * Requires the msg.sender to be the owner, approved, or operator
+     * @param from current owner of the token
+     * @param to address to receive the ownership of the given token ID
+     * @param tokenId uint256 ID of the token to be transferred
+     */
     function safeTransferFrom(address from, address to, uint256 tokenId) public {
         safeTransferFrom(from, to, tokenId, "");
     }
 
+    /**
+     * @dev Safely transfers the ownership of a given token ID to another address
+     * If the target address is a contract, it must implement `onERC721Received`,
+     * which is called upon a safe transfer, and return the magic value
+     * `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`; otherwise,
+     * the transfer is reverted.
+     * Requires the msg.sender to be the owner, approved, or operator
+     * @param from current owner of the token
+     * @param to address to receive the ownership of the given token ID
+     * @param tokenId uint256 ID of the token to be transferred
+     * @param _data bytes data to send along with a safe transfer check
+     */
     function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory _data) public {
         transferFrom(from, to, tokenId);
-        require(_checkOnERC721Received(from, to, tokenId, _data));
+        require(_checkOnERC721Received(from, to, tokenId, _data), "ERC721: transfer to non ERC721Receiver implementer");
     }
 
     /**
@@ -214,46 +271,85 @@ contract ERC721 is Pausable, ERC165 {
     }
 
     /**
-     * @dev Returns whether the given spender can transfer a given token ID
+     * @dev Returns whether the given spender can transfer a given token ID.
      * @param spender address of the spender to query
      * @param tokenId uint256 ID of the token to be transferred
      * @return bool whether the msg.sender is approved for the given token ID,
      * is an operator of the owner, or is the owner of the token
      */
     function _isApprovedOrOwner(address spender, uint256 tokenId) internal view returns (bool) {
+        require(_exists(tokenId), "ERC721: operator query for nonexistent token");
         address owner = ownerOf(tokenId);
         return (spender == owner || getApproved(tokenId) == spender || isApprovedForAll(owner, spender));
     }
 
-    // @dev Internal function to mint a new token
-    // TIP: remember the functions to use for Counters. you can refresh yourself with the link above
+    /**
+     * @dev Internal function to mint a new token.
+     * Reverts if the given token ID already exists.
+     * @param to The address that will own the minted token
+     * @param tokenId uint256 ID of the token to be minted
+     */
     function _mint(address to, uint256 tokenId) internal {
-        require(!_exists(tokenId), "ERC721 token with this id already exists");
-        require(to != address(0), "Zeo address is invalid to mint token");
+        require(to != address(0), "ERC721: mint to the zero address");
+        require(!_exists(tokenId), "ERC721: token already minted");
 
-        _tokenOwner[tokenId] = to;    
-        _ownedTokensCount[to].increment();    
+        _tokenOwner[tokenId] = to;
+        _ownedTokensCount[to].increment();
 
         emit Transfer(address(0), to, tokenId);
     }
 
-    // @dev Internal function to transfer ownership of a given token ID to another address.
-    // TIP: remember the functions to use for Counters. you can refresh yourself with the link above
-    function _transferFrom(address from, address to, uint256 tokenId) internal {
-        require(from == ownerOf(tokenId), "Only the owner of the token can transfer a token");
-        require(to != address(0));
+     /**
+     * @dev Internal function to burn a specific token.
+     * Reverts if the token does not exist.
+     * Deprecated, use _burn(uint256) instead.
+     * @param owner owner of the token to burn
+     * @param tokenId uint256 ID of the token being burned
+     */
+    function _burn(address owner, uint256 tokenId) internal {
+        require(ownerOf(tokenId) == owner, "ERC721: burn of token that is not own");
 
         _clearApproval(tokenId);
+
+        _ownedTokensCount[owner].decrement();
+        _tokenOwner[tokenId] = address(0);
+
+        emit Transfer(owner, address(0), tokenId);
+    }
+
+    /**
+     * @dev Internal function to burn a specific token.
+     * Reverts if the token does not exist.
+     * @param tokenId uint256 ID of the token being burned
+     */
+    function _burn(uint256 tokenId) internal {
+        _burn(ownerOf(tokenId), tokenId);
+    }
+
+    /**
+     * @dev Internal function to transfer ownership of a given token ID to another address.
+     * As opposed to transferFrom, this imposes no restrictions on msg.sender.
+     * @param from current owner of the token
+     * @param to address to receive the ownership of the given token ID
+     * @param tokenId uint256 ID of the token to be transferred
+     */
+    function _transferFrom(address from, address to, uint256 tokenId) internal {
+        require(ownerOf(tokenId) == from, "ERC721: transfer of token that is not own");
+        require(to != address(0), "ERC721: transfer to the zero address");
+
+        _clearApproval(tokenId);
+
         _ownedTokensCount[from].decrement();
         _ownedTokensCount[to].increment();
-        _tokenOwner[tokenId] = to;  
+
+        _tokenOwner[tokenId] = to;
 
         emit Transfer(from, to, tokenId);
     }
 
     /**
-     * @dev Internal function to invoke `onERC721Received` on a target address
-     * The call is not executed if the target address is not a contract
+     * @dev Internal function to invoke `onERC721Received` on a target address.
+     * The call is not executed if the target address is not a contract.
      * @param from address representing the previous owner of the given token ID
      * @param to target address that will receive the tokens
      * @param tokenId uint256 ID of the token to be transferred
@@ -271,7 +367,10 @@ contract ERC721 is Pausable, ERC165 {
         return (retval == _ERC721_RECEIVED);
     }
 
-    // @dev Private function to clear current approval of a given token ID
+    /**
+     * @dev Private function to clear current approval of a given token ID.
+     * @param tokenId uint256 ID of the token to be transferred
+     */
     function _clearApproval(uint256 tokenId) private {
         if (_tokenApprovals[tokenId] != address(0)) {
             _tokenApprovals[tokenId] = address(0);
@@ -365,6 +464,23 @@ contract ERC721Enumerable is ERC165, ERC721 {
         _addTokenToOwnerEnumeration(to, tokenId);
 
         _addTokenToAllTokensEnumeration(tokenId);
+    }
+
+    /**
+     * @dev Internal function to burn a specific token.
+     * Reverts if the token does not exist.
+     * Deprecated, use _burn(uint256) instead.
+     * @param owner owner of the token to burn
+     * @param tokenId uint256 ID of the token being burned
+     */
+    function _burn(address owner, uint256 tokenId) internal {
+        super._burn(owner, tokenId);
+
+        _removeTokenFromOwnerEnumeration(owner, tokenId);
+        // Since tokenId will be deleted, we can clear its slot in _ownedTokensIndex to trigger a gas refund
+        _ownedTokensIndex[tokenId] = 0;
+
+        _removeTokenFromAllTokensEnumeration(tokenId);
     }
 
     /**
@@ -522,6 +638,22 @@ contract ERC721Metadata is ERC721Enumerable, usingOraclize {
     function _setTokenURI(uint256 tokenId) internal {
         require(_exists(tokenId), "No token with this id");
         _tokenURIs[tokenId] = strConcat(_baseTokenURI, uint2str(tokenId));
+    }
+
+    /**
+     * @dev Internal function to burn a specific token.
+     * Reverts if the token does not exist.
+     * Deprecated, use _burn(uint256) instead.
+     * @param owner owner of the token to burn
+     * @param tokenId uint256 ID of the token being burned by the msg.sender
+     */
+    function _burn(address owner, uint256 tokenId) internal {
+        super._burn(owner, tokenId);
+
+        // Clear metadata (if any)
+        if (bytes(_tokenURIs[tokenId]).length != 0) {
+            delete _tokenURIs[tokenId];
+        }
     }
 
 }

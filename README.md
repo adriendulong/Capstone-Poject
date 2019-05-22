@@ -9,26 +9,27 @@ Goals of this project:
 
 
 ## Rinkeby deployment infos
-AdrienHouseToken address: `0x0B59A9DaD410f9447110F682997A73Cd9e880cE3`
-Verifier address: `0x27B29692eC8c360f2B35563A1a7759E0780A7181`
-SolnSquareVerifier address: `0x1268b869D0B9dC74C57722295624A18dc16F075F`
+**AdrienHouseToken** address: `0xBc79413e88A01FdF929D8906cF2dD05cABCa1963`  
+**Verifier** address: `0xA30f00399CD0D32c5579F77C64C2a25e443171eC`  
+**SolnSquareVerifier** address: `0x34710D9f7b7435F2AB3999731Bfe66fA348ac9e5`  
 
 ## OpenSea infos
-Storefront link: 
+Storefront link: https://rinkeby.opensea.io/category/bastidehousetokenv2
 Items that have been traded:
-1)
-2)
-3)
-4)
-5)
+1) https://rinkeby.opensea.io/assets/0x34710d9f7b7435f2ab3999731bfe66fa348ac9e5/1
+2) https://rinkeby.opensea.io/assets/0x34710d9f7b7435f2ab3999731bfe66fa348ac9e5/10
+3) https://rinkeby.opensea.io/assets/0x34710d9f7b7435f2ab3999731bfe66fa348ac9e5/5
+4) https://rinkeby.opensea.io/assets/0x34710d9f7b7435f2ab3999731bfe66fa348ac9e5/4
+5) https://rinkeby.opensea.io/assets/0x34710d9f7b7435f2ab3999731bfe66fa348ac9e5/8
 
 ## Make some tests on the contracts
 1) Go to the root of the project
 2) Make an `npm install`
 3) Launch a local blockchain with `npm run chain`
+4) Enter in the `eth-contracts` folder
 4) To launch the tests, make `truffle test` (you must have truffle installed globally on your computer). **The last test should fail** showing that it is not possible to mint a token with a wrong proof.
 
 ## More infos
 * The contracts ABI can be found in `eth-contracts/build`
 * The `ERC721Mintable.sol` has be renamed `AdrienHouseToken.sol`
-* A script has been written in order to mint 10 tokens, it can be run doing `truffle exec eth-contracts/script.js` (You must have a local chain running, or otherwise specify a network)
+* A script has been written in order to mint 10 tokens, it can be run doing `cd eth-contracts && truffle exec script.js` (You must have a local chain running, or otherwise specify a network)
